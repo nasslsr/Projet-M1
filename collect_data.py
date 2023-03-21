@@ -10,8 +10,6 @@ import requests
 
 
 
-
-
 url_station_information='https://velib-metropole-opendata.smoove.pro/opendata/Velib_Metropole/station_information.json'
 
 url_station_status='https://velib-metropole-opendata.smoove.pro/opendata/Velib_Metropole/station_status.json'
@@ -117,56 +115,11 @@ def collect_and_merge_data():
     return all_data_information
 
 
+if __name__ == '__main__':
+    collect_and_merge_data()
 
 
 
-
-
-"""
-
-
-Avec last_reported comme clé priamire
-
-
-
-import requests
-
-def collect_and_merge_data():
-    request_result = requests.get(url_station_information)
-    request_data = request_result.json()
-    information_localization = request_data['data']['stations']
-    
-    request_result_2 = requests.get(url_station_status)
-    request_data_2 = request_result_2.json()
-    information_stations = request_data_2['data']['stations']
-    
-    # combiner les deux listes en tuple ex: languages = ['Java', 'Python', 'JavaScript']  versions = [14, 3, 6] donne  [('Java', 14), ('Python', 3), ('JavaScript', 6)]
-    combined_list = list(zip(information_localization, information_stations))
-    
-    # créer un nouveau dictionnaire en utilisant "last_reported" comme clé primaire
-    all_data_information = {}
-    for localization, status in combined_list:
-        last_reported = status['last_reported']
-        all_data_information[last_reported] = {
-            "station_id":localization['station_id'],
-            "name": localization['name'],
-            "geographic_lat": localization['lat'],
-            "geographic_lon": localization['lon'],
-            "capacity": localization['capacity'],
-            "stationCode": localization['stationCode'],
-            "num_bikes_available": status['num_bikes_available'],
-            "num_bikes_available_types": status['num_bikes_available_types'],
-            "num_docks_available": status['num_docks_available'],
-            "is_installed": status['is_installed'],
-            "is_returning": status['is_returning'],
-            "is_renting": status['is_renting']
-        }
-    return all_data_information
-
-print(collect_and_merge_data())
-
-
-"""
 
 
 

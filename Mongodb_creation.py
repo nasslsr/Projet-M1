@@ -73,7 +73,7 @@ def insert_Data():
         
 
 
-def create_last_reported_index(mycol):
+def create_index(mycol):
     
     # Créer un index sur le champ 'last_reported' en ordre décroissant
     mycol.create_index([('last_reported', pymongo.DESCENDING)])
@@ -82,5 +82,9 @@ def create_last_reported_index(mycol):
     print(f"Les index actuels de la collection '{mycol.name}' sont :")
     print(mycol.index_information())
 
+    
+ if __name__ == '__main__':
+    insert_data()
+    create_index()
 
     

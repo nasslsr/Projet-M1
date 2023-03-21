@@ -84,7 +84,7 @@ def create_index(mycol):
 
     
  if __name__ == '__main__':
-    insert_data()
+    insert_Data()
     create_index()
 
     

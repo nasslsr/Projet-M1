@@ -7,7 +7,7 @@ Created on Tue Mar 21 17:55:24 2023
 """
 import pymongo
 from pymongo import MongoClient
-from collect_data_v2 import collect_and_merge_data
+from collect_data import collect_and_merge_data
 
 
 

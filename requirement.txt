@@ -1,3 +1,4 @@
 requests==2.28.2
 pymongo==4.3.3
 Flask
+Flask-PyMongo==2.3.0

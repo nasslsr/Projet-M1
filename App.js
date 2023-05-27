@@ -1,17 +1,31 @@
 import React, { useEffect, useState, useRef }  from 'react';
 import { StyleSheet, Text, View,Image, Animated, Easing, TextInput, Button, TouchableOpacity, ImageBackground, FlatList , Dimensions} from 'react-native';
-import { NavigationContainer, useNavigation} from '@react-navigation/native';
+import { NavigationContainer, useNavigation, useRoute} from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import Ionicons from 'react-native-vector-icons/Ionicons'
 import MapView , {Marker, Polyline, Callout} from 'react-native-maps';
 import * as Location from 'expo-location';
 import LottieView from 'lottie-react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import MapViewDirections from 'react-native-maps-directions';
+import { GooglePlacesAutocomplete } from 'react-native-google-places-autocomplete';
+import { ScrollView } from 'react-native-gesture-handler';
+import { BarChart, LineChart, PieChart } from "react-native-gifted-charts";
+import { WebView } from 'react-native-webview';
+import CumulioDashboardComponent, { CumulioDashboard } from '@cumul.io/react-native-cumulio-dashboard';
+
+
 
 
 
 const tab=createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
+
+const GOOGLE_MAPS_APIKEY = '';
+const VELIB_URL_INFORMATION = 'https://velib-metropole-opendata.smoove.pro/opendata/Velib_Metropole/station_information.json';
+const VELIB_URL_STATUS = 'https://velib-metropole-opendata.smoove.pro/opendata/Velib_Metropole/station_status.json';
+
+
 
 function MapScreen({route}) {
 
@@ -123,7 +137,7 @@ function MapScreen({route}) {
             <Callout>
               <View style={styles.calloutContainer}>
                 <Text>{selectedStation.name}</Text>
-                <Text>Capacity: {selectedStation.capacity}</Text>
+                <Text>Station Code: {selectedStation.stationCode}</Text>
                 <View style={styles.buttonContainer}>
                   <TouchableOpacity style={styles.button} onPress={() => navigation.navigate('Itinéraire')}>
                     <Text style={styles.buttonText}>Itinéraire</Text>
@@ -144,8 +158,8 @@ function MapScreen({route}) {
               
               
             >
-                <Image style={{width:50, height:50, resizeMode:'contain'}} 
-                        source={require('./assets/icon-position.png')} />
+                <Image style={{width:100, height:100, resizeMode:'contain'}} 
+                        source={require('./assets/me.png')} />
             </Marker>
           )}
         </MapView>
@@ -154,8 +168,105 @@ function MapScreen({route}) {
   );
 }
 
+
+function VelibDashboard(){
+  const ref = useRef<CumulioDashboard>(null);
+  return (
+    <WebView
+      style={styles.container}
+      source={{ uri: 'https://app.cumul.io/dashboard/4c99e5ca-4c5c-454e-ac54-0997696203d8' }}
+    />
+  );
+}
+
 function ItineraryScreen() {
   
+ 
+ 
+  const [origin, setOrigin] = useState(null);
+  const [destination, setDestination] = useState(null);
+  const [stations, setStations] = useState([]);
+  const [nearestStation, setNearestStation] = useState(null);
+  const [originNearestStation, setOriginNearestStation] = useState(null);
+  const [distance, setDistance] = useState(null);
+  const [duration, setDuration] = useState(null);
+
+
+  
+  const mapRef = useRef(null);
+  const navigation = useNavigation();
+
+  useEffect(() => {
+    fetch(VELIB_URL_INFORMATION)
+      .then(response => response.json())
+      .then(data => {
+        setStations(data.data.stations);
+      });
+  }, []);
+
+  useEffect(() => {
+    if (!origin || !destination) return;
+
+    mapRef.current.fitToSuppliedMarkers(["origin","destination"], {
+      edgepadding: {top:50, right:50, bottom:50, left:50},
+    });
+  }, [origin,destination]);
+
+  const fetchAndSortStations = (userLat, userLon, filterType) => {
+    return Promise.all([
+      fetch(VELIB_URL_INFORMATION).then(response => response.json()),
+      fetch(VELIB_URL_STATUS).then(response => response.json()),
+    ])
+      .then(([infoData, statusData]) => {
+        const combinedData = infoData.data.stations.map(station => {
+          const status = statusData.data.stations.find(s => s.station_id === station.station_id);
+          return {...station, ...status};
+        });
+        
+        let sortedAndFilteredData;
+        
+        if (filterType === "origin") {
+          sortedAndFilteredData = combinedData
+            .filter(station => station.num_bikes_available > 0)
+            .sort((a, b) => {
+              const distA = getDistanceFromLatLonInKm(userLat, userLon, a.lat, a.lon);
+              const distB = getDistanceFromLatLonInKm(userLat, userLon, b.lat, b.lon);
+              return distA - distB;
+            });
+        } else if (filterType === "destination") {
+          sortedAndFilteredData = combinedData
+            .filter(station => station.num_docks_available > 0)
+            .sort((a, b) => {
+              const distA = getDistanceFromLatLonInKm(userLat, userLon, a.lat, a.lon);
+              const distB = getDistanceFromLatLonInKm(userLat, userLon, b.lat, b.lon);
+              return distA - distB;
+            });
+        }
+  
+        return sortedAndFilteredData;
+      })
+      .catch(err => console.error(err));
+  };
+  
+
+  const getDistanceFromLatLonInKm = (lat1, lon1, lat2, lon2) => {
+    var R = 6371; // Radius of the earth in km
+    var dLat = deg2rad(lat2 - lat1);
+    var dLon = deg2rad(lon2 - lon1); 
+    var a = 
+      Math.sin(dLat/2) * Math.sin(dLat/2) +
+      Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) * 
+      Math.sin(dLon/2) * Math.sin(dLon/2)
+    ; 
+    var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); 
+    var d = R * c; // Distance in km
+    return d;
+  }
+
+  const deg2rad = (deg) => {
+    return deg * (Math.PI/180);
+  }
+
 
   return (
     <View style={{ flex: 1 }}>
@@ -165,47 +276,191 @@ function ItineraryScreen() {
             source={require('./assets/icon-position.png')}
             style={{ width: 30, height: 30, marginRight: 10 }}
           />
-          <TextInput placeholder="Votre position" placeholderTextColor='black' style={{ borderBottomWidth: 1, borderColor: '#ccc', flex: 1, color:'black' }} />
+         <GooglePlacesAutocomplete
+            placeholder='Votre position'
+            placeholderTextColor='black'
+            fetchDetails={true}
+            value='6 rue Molière. Ivry sur Seine, France'
+            onFail={error => console.log(error)}
+            onNotFound={() => console.log('no results')}
+            textInputProps={{
+              autoFocus: true,
+              blurOnSubmit: false,
+              placeholderTextColor:'black'
+            }}
+            onPress={(data, details = null) => {
+              if (details && details.geometry && details.geometry.location) {
+                console.log('Selected location details:', details);
+                setOrigin({
+                  latitude: details.geometry.location.lat,
+                  longitude: details.geometry.location.lng,
+                });
+          
+                fetchAndSortStations(details.geometry.location.lat, details.geometry.location.lng, "origin")
+                  .then(sortedStations => {
+                    if (sortedStations && sortedStations.length > 0) {
+                      setOriginNearestStation({
+                        latitude: sortedStations[0].lat,
+                        longitude: sortedStations[0].lon,
+                        name_origin: sortedStations[0].name,
+                        num_bikes_origin:sortedStations[0].num_bikes_available
+                      });
+                    }
+                  });
+              }
+            }}
+            query={{
+              key: GOOGLE_MAPS_APIKEY,
+              language: 'fr',
+              
+            }}
+            styles={{
+              textInput: {
+                borderBottomWidth: 1,
+                borderColor: '#ccc',
+                flex: 1,
+                color: 'black'
+              }
+            }}
+          />
         </View>
+        
         <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 20 }}>
           <Image
             source={require('./assets/icon-walking.png')}
             style={{ width: 30, height: 30, marginRight: 10 }}
           />
-          <TextInput placeholder="Arrivée" placeholderTextColor='black' style={{ borderBottomWidth: 1, borderColor: '#ccc', flex: 1, color:'black',placeholderTextColor:'black'}} />
+          <GooglePlacesAutocomplete
+            placeholder='Arrivée'
+            fetchDetails={true}
+            onFail={error => console.log(error)}
+            onNotFound={() => console.log('no results')}
+            textInputProps={{
+              autoFocus: true,
+              blurOnSubmit: false,
+              placeholderTextColor:'black'
+            }}
+            onPress={(data, details = null) => {
+              if (details && details.geometry && details.geometry.location) {
+                console.log('Selected location details:', details);
+                setDestination({
+                  latitude: details.geometry.location.lat,
+                  longitude: details.geometry.location.lng,
+                });
+
+                fetchAndSortStations(details.geometry.location.lat, details.geometry.location.lng, "destination")
+              .then(sortedStations => {
+                // vérifiez que les stations sont bien triées et prenez la première (la plus proche)
+                if (sortedStations && sortedStations.length > 0) {
+                  setNearestStation({
+                    latitude: sortedStations[0].lat,
+                    longitude: sortedStations[0].lon,
+                    name_destination: sortedStations[0].name,
+                    num_bikes_destination:sortedStations[0].num_bikes_available
+                  
+                  });
+                }
+              });
+              }
+            }}
+           
+            query={{
+              key: GOOGLE_MAPS_APIKEY,
+              language: 'fr',
+              
+            }}
+            styles={{
+              textInput: {
+                borderBottomWidth: 1,
+                borderColor: '#ccc',
+                flex: 1,
+                color: 'black'
+              }
+            }}
+          />
         </View>
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 5, alignItems: 'center',}}>
-          <TouchableOpacity style={{ alignItems: 'center' }}>
-            <Image source={require('./assets/icon-car.png')} style={{ width: 40, height: 40 ,marginHorizontal: 60,marginTop: 5}} />
-            <Text>Voiture</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={{ alignItems: 'center' }}>
-            <Image source={require('./assets/icon-metro.png')} style={{ width: 40, height: 40 , marginHorizontal: 60,marginTop: 5}} />
-            <Text>Métro</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={{ alignItems: 'center' }}>
-            <Image source={require('./assets/icon-walking.png')} style={{ width: 40, height: 40, marginHorizontal: 60, marginTop: 5 }} />
-            <Text>Marche</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={{ alignItems: 'center' }}>
-            <Image source={require('./assets/icon-bike.png')} style={{ width: 40, height: 40, marginHorizontal: 60, marginTop: 5}} />
-            <Text>Vélo</Text>
-          </TouchableOpacity>
-        </View>
+        <View style={{ backgroundColor: 'white', padding: 20 }}>
+  <View style={{ flexDirection: 'row', alignItems: 'center',marginBottom:-20 ,marginTop:-20 }}>
+    <View style={{ flexDirection: 'row', alignItems: 'center',marginLeft:150  }}>
+      <Image
+        source={require('./assets/distance.png')}
+        style={{ width: 60, height: 60, marginRight: 10 }} 
+      />
+      <Text style={{ fontSize: 25 }}>Distance : {distance} km</Text> 
+    </View>
+    <View style={{ flexDirection: 'row', alignItems: 'center',marginLeft:300 }}>
+      <Image
+        source={require('./assets/icon-bike.png')}
+        style={{ width: 60, height: 60, marginRight: 10 }} 
+      />
+      <Text style={{ fontSize: 25 }}>Durée : {duration}</Text> 
+    </View>
+  </View>
+</View>
+
+
       </View>
       <MapView
+        ref={mapRef}
         style={{ flex: 1 }}
         initialRegion={{
-          
-        }}
-          
-      
-      />
+          latitude: 48.856614,
+          longitude: 2.3522219, 
+          latitudeDelta: 0.0922,
+          longitudeDelta: 0.0421,
+        }}>
+          {origin && <Marker identifier="origin" coordinate={origin}> 
+          <Image style={{width:100, height:100, resizeMode:'contain'}} source={require('./assets/mee.png')} />
+          </Marker>}
+         {destination && <Marker identifier="destination" coordinate={destination}> 
+          <Image style={{width:50, height:50, resizeMode:'contain'}} source={require('./assets/destination.png')} />
+          </Marker>}
+          {nearestStation && <Marker identifier="nearestStation" coordinate={nearestStation}> 
+          <Image style={{width:60, height:60, resizeMode:'contain'}} source={require('./assets/borne_velib_waypoints.png')} />
+          <Callout>
+              <View style={styles.calloutContainer}>
+                <Text style={{ fontSize: 8 }}>{nearestStation.name_destination}</Text>
+                <Text style={{ fontSize: 8 }}>Bornes disponibles: {nearestStation.num_bikes_destination}</Text>
+              </View>
+            </Callout>
+          </Marker>}
+          {originNearestStation && <Marker identifier="originNearestStation" coordinate={originNearestStation}> 
+          <Image style={{width:60, height:60, resizeMode:'contain'}} source={require('./assets/borne_velib_waypoints.png')} />
+          <Callout >
+              <View style={styles.calloutContainer}>
+                <Text style={{ fontSize: 8 }}>{originNearestStation.name_origin}</Text>
+                <Text style={{ fontSize: 8 }}>Vélibs disponibles: {originNearestStation.num_bikes_origin}</Text>
+              </View>
+            </Callout>
+          </Marker>}
+          {origin && destination && originNearestStation &&  nearestStation &&(
+            <MapViewDirections
+              origin={origin}
+              waypoints={[originNearestStation, nearestStation]}
+              destination={destination}
+              apikey={GOOGLE_MAPS_APIKEY}
+              strokeWidth={3}
+              strokeColor="yellow"
+              mode='BICYCLING'
+              onError={(errorMessage) => { console.log('MapViewDirections error:', errorMessage); }}
+              onReady={result => {
+                setDistance(result.distance);
+              
+                const hours = Math.floor(result.duration / 60);  // Convert minutes into hours
+                const minutes = Math.floor(result.duration % 60);            // Get the remaining minutes
+              
+                setDuration(`${hours}h ${minutes}min`);  // Set the duration in 'Xh Ymin' format
+            
+              }}
+              
+              
+              
+            />
+          )}
+</MapView>
     </View>
   );
 }
-
-  
 
 function InformationScreen(){
   return (
@@ -219,7 +474,7 @@ function InformationScreen(){
 
 function Chatbot() {
   const [userInput, setUserInput] = useState('');
-  const [chatLog, setChatLog] = useState('Answer appearing here');
+  const [chatLog, setChatLog] = useState('');
 
   const styles = StyleSheet.create({
     glass: {
@@ -283,12 +538,12 @@ function Chatbot() {
 
   function talk() {
     const know = {
-      "Who are you": "Hello, Codewith_random here",
-      "How are you": "Good :)",
-      "What can i do for you": "Please Give us A Follow & Like.",
-      "Your followers": "I have my family of 5000 members, i don't have follower ,have supportive Famiy ",
-      "ok": "Thank You So Much",
-      "Bye": "Okay! Will meet soon.."
+      "j'aimerais m'abonner à velib": "Heureux d'apprendre cette nouvelle ! clicker sur ce lien pour commencer votre inscription : https://www.velib-metropole.fr",
+      "j'aimerais signaler un problème": "Nous sommes là pour vous aider. Dites moi tout ! ",
+      "bonjour": "Bonjour! Que puis-je faire pour vous aider !",
+      "comment mettre fin à mon abonnement velib": "C'est une bien triste nouvelle que vous m'annoncez, je vais vous aider à commencer la démarche.",
+      "merci": "je vous en prie !"
+     
     };
     const user = userInput;
     if (user in know) {
@@ -324,108 +579,6 @@ function Chatbot() {
   
   );
   
-}
-
-function DashboardConnection() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-
-  const handleLogin = () => {
-    // Ajouter la logique de connexion ici
-  };
-
-  const handleForgotPassword = () => {
-    // Ajouter la logique de récupération de mot de passe ici
-  };
-
-  const styles = StyleSheet.create({
-    container: {
-      flex: 1,
-      backgroundColor: '#B6e2f1',
-      alignItems: 'center',
-      justifyContent: 'center',
-      width:'100%'
-    },
-    logo:{
-      width:200,
-      height:200
-    },
-    inputView:{
-      width:"80%",
-      backgroundColor:"#Beebc5",
-      borderRadius:25,
-      height:50,
-      marginBottom:20,
-      justifyContent:"center",
-      padding:20
-    },
-    inputText:{
-      height:50,
-      color:"white"
-    },
-    forgot:{
-      color:"black",
-      fontSize:11
-    },
-    loginBtn:{
-      width:"80%",
-      backgroundColor:"#F3212f",
-      fontWeight:'bold',
-      borderRadius:25,
-      height:50,
-      alignItems:"center",
-      justifyContent:"center",
-      marginTop:40,
-      marginBottom:10
-    },
-    loginText:{
-      color:"white"
-    }
-  });
-
-  return (
-    <View style={styles.container}>
-      <Image source={require('./assets/icon-dashboard.png')} style={styles.logo} />
-      <View style={styles.inputView} >
-        <TextInput
-          style={styles.inputText}
-          placeholder="Prenom@velib.fr"
-          placeholderTextColor="#003f5c"
-          color='black'
-          onChangeText={text => setEmail(text)}
-          value={email}
-        />
-      </View>
-      <View style={styles.inputView} >
-        <TextInput
-          secureTextEntry
-          style={styles.inputText}
-          placeholder="Mot de Passe"
-          placeholderTextColor="#003f5c"
-          color='black'
-          onChangeText={text => setPassword(text)}
-          value={password}
-        />
-      </View>
-      <TouchableOpacity onPress={handleForgotPassword}>
-        <Text style={styles.forgot}>Forgot Password?</Text>
-      </TouchableOpacity>
-      <TouchableOpacity style={styles.loginBtn} onPress={handleLogin}>
-        <Text style={styles.loginText}>LOGIN</Text>
-      </TouchableOpacity>
-      <TouchableOpacity onPress={() => console.log("Signup")}>
-        <Text style={styles.loginText}>Signup</Text>
-      </TouchableOpacity>
-    </View>
-  );
-}
-  
-function DashboardScreen(){
-  return (
-    <View style={styles.container}>
-      <DashboardConnection/>
-    </View>
-  );
 }
 
 function SplashScreen() {
@@ -494,11 +647,11 @@ function UserConnection() {
   const [password, setPassword] = useState("");
 
   const handleLogin = () => {
-    // Ajouter la logique de connexion ici
+  
   };
 
   const handleForgotPassword = () => {
-    // Ajouter la logique de récupération de mot de passe ici
+    
   };
 
   const styles = StyleSheet.create({
@@ -584,8 +737,6 @@ function UserConnection() {
   );
 }
 
-const API_URL = 'https://velib-metropole-opendata.smoove.pro/opendata/Velib_Metropole/station_information.json';
-
 function SearchScreen({navigation}) {
 
   const styles = StyleSheet.create({
@@ -636,6 +787,16 @@ function SearchScreen({navigation}) {
     capacityValue: {
       marginLeft: 10,
     },
+    stationCode : {
+      flexDirection : 'row'
+    },
+    stationCodeValue:{
+      marginLeft: 10,
+    },
+    bikesAvailable : {
+      flexDirection : 'row'
+    },
+
   });
   
   
@@ -645,13 +806,64 @@ function SearchScreen({navigation}) {
   const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
-    fetch(API_URL)
-      .then(response => response.json())
-      .then(data => {
-        setStations(data.data.stations);
-        setFilteredStations(data.data.stations);
-      });
+    (async () => {
+      let { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        console.error('Permission to access location was denied');
+        return;
+      }
+      let location = await Location.getCurrentPositionAsync({});
+      fetchAndSortStations(location.coords.latitude, location.coords.longitude);
+    })();
   }, []);
+
+  const fetchAndSortStations = (userLat, userLon) => {
+    Promise.all([
+      fetch(VELIB_URL_INFORMATION).then(response => response.json()),
+      fetch(VELIB_URL_STATUS).then(response => response.json())
+    ])
+    .then(([infoData, statusData]) => {
+      const statusById = statusData.data.stations.reduce((acc, station) => {
+        acc[station.station_id] = station;
+        return acc;
+      }, {});
+  
+      const mergedData = infoData.data.stations.map(station => {
+        return {
+          ...station,
+          num_bikes_available: statusById[station.station_id]?.num_bikes_available || 0
+        }
+      });
+  
+      const sortedData = mergedData.sort((a, b) => {
+        const distA = getDistanceFromLatLonInKm(userLat, userLon, a.lat, a.lon);
+        const distB = getDistanceFromLatLonInKm(userLat, userLon, b.lat, b.lon);
+        return distA - distB;
+      });
+  
+      setStations(sortedData);
+      setFilteredStations(sortedData);
+    })
+    .catch(err => console.error(err));
+  };
+
+  const getDistanceFromLatLonInKm = (lat1, lon1, lat2, lon2) => {
+    var R = 6371; // Radius of the earth in km
+    var dLat = deg2rad(lat2 - lat1);
+    var dLon = deg2rad(lon2 - lon1); 
+    var a = 
+      Math.sin(dLat/2) * Math.sin(dLat/2) +
+      Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) * 
+      Math.sin(dLon/2) * Math.sin(dLon/2)
+    ; 
+    var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); 
+    var d = R * c; // Distance in km
+    return d;
+  }
+
+  const deg2rad = (deg) => {
+    return deg * (Math.PI/180);
+  }
 
   const handleSearch = query => {
     const filteredData = stations.filter(station => station.name.toLowerCase().includes(query.toLowerCase()));
@@ -669,6 +881,8 @@ function SearchScreen({navigation}) {
     });
   };
 
+ 
+  
 
   const renderItem = ({ item }) => {
     return (
@@ -681,9 +895,21 @@ function SearchScreen({navigation}) {
             <View style={styles.textContainer}>
               <Text style={styles.title}>{item.name}</Text>
               <View style={styles.capacity}>
-                <Text>Capacity:</Text>
+                <Text>Capacité totale de la borne : </Text>
                 <View style={styles.capacityValue}>
                   <Text>{item.capacity}</Text>
+                </View>
+              </View>
+              <View style={styles.stationCode}>
+                <Text>Le Code de la station : </Text>
+                <View style={styles.stationCodeValue}>
+                  <Text>{item.stationCode}</Text>
+                </View>
+              </View>
+              <View style={styles.bikesAvailable}>
+                <Text>Nombre de Velib disponible : </Text>
+                <View style={styles.bikesAvailableValue}>
+                  <Text>{item.num_bikes_available}</Text>
                 </View>
               </View>
             </View>
@@ -693,6 +919,8 @@ function SearchScreen({navigation}) {
     );
   };
   
+  
+
   return (
     <View style={styles.container}>
       <TextInput
@@ -713,23 +941,20 @@ function SearchScreen({navigation}) {
 }
 
 
-
-
-
 function Home() {
 
   const navigation = useNavigation();
   const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
-    // Simulate loading some data or performing an API call
+    
     setTimeout(() => {
       setIsReady(true);
     }, 10000);
   }, []);
 
   if (!isReady) {
-    // Show splash screen while data is being loaded
+   
     return <SplashScreen />;
   }
 
@@ -843,7 +1068,7 @@ function Home() {
                                 }}
                                   />
 
-    <tab.Screen name ='Dashboard' component={DashboardConnection}options=
+    <tab.Screen name ='Dashboard' component={VelibDashboard}options=
                                   {{headerStyle: {
                                     backgroundColor: '#91b1fd',
                                   },
@@ -928,4 +1153,9 @@ const styles = StyleSheet.create({
     
   
 });
+
+
+
+
+
 

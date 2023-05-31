@@ -8,8 +8,6 @@ Created on Tue Mar 21 16:01:27 2023
 import requests
 
 
-
-
 url_station_information='https://velib-metropole-opendata.smoove.pro/opendata/Velib_Metropole/station_information.json'
 
 url_station_status='https://velib-metropole-opendata.smoove.pro/opendata/Velib_Metropole/station_status.json'
@@ -38,12 +36,6 @@ def collect_data_localization(url_station_information):
     return data_localization_information
 
 
-
-
-            
-
-
-
 def collect_data_availability_velib_terminal(url_station_status):    
     
     request_result = requests.get(url_station_status)
@@ -70,12 +62,6 @@ def collect_data_availability_velib_terminal(url_station_status):
     return data_availability_information
             
 
-
-
-
-
-
-
 def collect_and_merge_data():
     request_result = requests.get(url_station_information)
     request_data = request_result.json()
@@ -85,11 +71,8 @@ def collect_and_merge_data():
     request_data_2 = request_result_2.json()
     information_stations = request_data_2['data']['stations']
     
-    # combiner les deux listes en tuple ex: languages = ['Java', 'Python', 'JavaScript']  versions = [14, 3, 6] donne  [('Java', 14), ('Python', 3), ('JavaScript', 6)]
+   
     combined_list = list(zip(information_localization, information_stations))
-    
-    # créer un nouveau dictionnaire en mettant toutes les informations des indices 0 ensemble puis des indcies 1 enselble etc 
-    #localization parcourt le tuple des données de loca et status parcourt le tuple des données de status
     all_data_information = []
     for localization, status in combined_list:
         

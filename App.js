@@ -259,7 +259,7 @@ function ItineraryScreen() {
       Math.sin(dLon/2) * Math.sin(dLon/2)
     ; 
     var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); 
-    var d = R * c; // Distance in km
+    var d = R * c; 
     return d;
   }
 
@@ -447,9 +447,9 @@ function ItineraryScreen() {
                 setDistance(result.distance);
               
                 const hours = Math.floor(result.duration / 60);  // Convert minutes into hours
-                const minutes = Math.floor(result.duration % 60);            // Get the remaining minutes
+                const minutes = Math.floor(result.duration % 60);            
               
-                setDuration(`${hours}h ${minutes}min`);  // Set the duration in 'Xh Ymin' format
+                setDuration(`${hours}h ${minutes}min`);  
             
               }}
               

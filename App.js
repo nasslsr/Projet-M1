@@ -21,7 +21,7 @@ import CumulioDashboardComponent, { CumulioDashboard } from '@cumul.io/react-nat
 const tab=createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 
-const GOOGLE_MAPS_APIKEY = '';
+const GOOGLE_MAPS_APIKEY = 'METTRE_VOTRE_CLÉ';
 const VELIB_URL_INFORMATION = 'https://velib-metropole-opendata.smoove.pro/opendata/Velib_Metropole/station_information.json';
 const VELIB_URL_STATUS = 'https://velib-metropole-opendata.smoove.pro/opendata/Velib_Metropole/station_status.json';
 
@@ -381,19 +381,19 @@ function ItineraryScreen() {
         </View>
         <View style={{ backgroundColor: 'white', padding: 20 }}>
   <View style={{ flexDirection: 'row', alignItems: 'center',marginBottom:-20 ,marginTop:-20 }}>
-    <View style={{ flexDirection: 'row', alignItems: 'center',marginLeft:150  }}>
+    <View style={{ flexDirection: 'row', alignItems: 'center',marginLeft:0  }}>
       <Image
         source={require('./assets/distance.png')}
-        style={{ width: 60, height: 60, marginRight: 10 }} 
+        style={{ width: 25, height: 25, marginRight: 10 }} 
       />
-      <Text style={{ fontSize: 25 }}>Distance : {distance} km</Text> 
+      <Text style={{ fontSize: 15 }}>Distance : {distance} km</Text> 
     </View>
-    <View style={{ flexDirection: 'row', alignItems: 'center',marginLeft:300 }}>
+    <View style={{ flexDirection: 'row', alignItems: 'center',marginLeft:15 }}>
       <Image
         source={require('./assets/icon-bike.png')}
-        style={{ width: 60, height: 60, marginRight: 10 }} 
+        style={{ width: 25, height: 25, marginRight: 10 }} 
       />
-      <Text style={{ fontSize: 25 }}>Durée : {duration}</Text> 
+      <Text style={{ fontSize: 15 }}>Durée : {duration}</Text> 
     </View>
   </View>
 </View>
@@ -620,7 +620,7 @@ function SplashScreen() {
     },
     splashText: {
       color: 'white',
-      fontSize: 35,
+      fontSize: 20,
       fontWeight: 'bold',
       opacity: logoFade,
       transform: [{translateY: Animated.subtract(logoMovement, 100)}],
@@ -983,6 +983,28 @@ function Home() {
               
 
             },
+            tabBarLabel: ({ focused, color }) => {
+              let labelSize;
+  
+              switch (route.name) {
+                  case 'Map':
+                      labelSize = 20;
+                      break;
+                  case 'Information':
+                  case 'Dashboard':
+                      labelSize = 18;
+                      break;
+                  default:
+                      labelSize = 16;
+                      break;
+              }
+  
+              return (
+                  <Text style={{ fontSize: labelSize, color: color, textAlign: 'center', marginBottom: 5 }}>
+                      {route.name}
+                  </Text>
+              );
+          },
             tabBarActiveTintColor: 'green',
             tabBarActiveBackgroundColor:'#62c994',
           tabBarInactiveTintColor: 'black',
@@ -1153,9 +1175,5 @@ const styles = StyleSheet.create({
     
   
 });
-
-
-
-
 
 

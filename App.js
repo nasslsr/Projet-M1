@@ -350,7 +350,7 @@ function ItineraryScreen() {
 
                 fetchAndSortStations(details.geometry.location.lat, details.geometry.location.lng, "destination")
               .then(sortedStations => {
-                // vérifiez que les stations sont bien triées et prenez la première (la plus proche)
+                
                 if (sortedStations && sortedStations.length > 0) {
                   setNearestStation({
                     latitude: sortedStations[0].lat,

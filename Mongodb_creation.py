@@ -16,7 +16,7 @@ from collect_data import collect_and_merge_data
 
 def connection_DB():
     
-    connection_string='mongodb://127.0.0.1:27017/?directConnection=true&serverSelectionTimeoutMS=2000&appName=mongosh+1.8.0'
+    connection_string='mongodb://velib:velibvelib@db-velib.cluster-cqecs86mruax.eu-west-1.docdb.amazonaws.com:27017'
     client = pymongo.MongoClient(connection_string)
     
     
@@ -72,11 +72,6 @@ def insert_Data():
         x = mycol.insert_one(one_dictionnary)
         
 
-
-def create_index(mycol):
-    
-    # Créer un index sur le champ 'last_reported' en ordre décroissant
-    mycol.create_index([('last_reported', pymongo.DESCENDING)])
     
     # Afficher la liste des index de la collection
     print(f"Les index actuels de la collection '{mycol.name}' sont :")
